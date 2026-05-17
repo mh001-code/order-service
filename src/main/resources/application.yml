@@ -2,7 +2,7 @@ spring:
   application:
     name: order-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/orders}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5435/orders}
     username: ${SPRING_DATASOURCE_USERNAME:orders_user}
     password: ${SPRING_DATASOURCE_PASSWORD:orders_pass}
     driver-class-name: org.postgresql.Driver
@@ -21,4 +21,4 @@ spring:
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8085}
