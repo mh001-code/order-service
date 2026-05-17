@@ -54,7 +54,7 @@ The `order-service` **does not know** that `inventory-service` or `notification-
 ### Create Order — Example
 
 ```bash
-curl -X POST http://localhost:8080/orders \
+curl -X POST http://localhost:8085/orders \
   -H "Content-Type: application/json" \
   -d '{
     "customerId": "550e8400-e29b-41d4-a716-446655440000",
@@ -113,12 +113,48 @@ RabbitMQ Management UI: http://localhost:15672 (guest / guest)
 
 | Variable | Default | Description |
 |---|---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/orders` | DB connection |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5435/orders` | DB connection |
 | `SPRING_DATASOURCE_USERNAME` | `orders_user` | DB user |
 | `SPRING_DATASOURCE_PASSWORD` | `orders_pass` | DB password |
 | `SPRING_RABBITMQ_HOST` | `localhost` | RabbitMQ host |
 | `SPRING_RABBITMQ_PORT` | `5672` | RabbitMQ port |
-| `PORT` | `8080` | Server port |
+| `SPRING_RABBITMQ_USERNAME` | `guest` | RabbitMQ user |
+| `SPRING_RABBITMQ_PASSWORD` | `guest` | RabbitMQ password |
+| `PORT` | `8085` | Server port |
+
+## Docker
+
+```bash
+# Build the image
+docker build -t order-service .
+
+# Run (requires PostgreSQL and RabbitMQ reachable via env vars)
+docker run -p 8080:8080 \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5435/orders \
+  -e SPRING_DATASOURCE_USERNAME=orders_user \
+  -e SPRING_DATASOURCE_PASSWORD=orders_pass \
+  -e SPRING_RABBITMQ_HOST=host.docker.internal \
+  order-service
+```
+
+## Deploy on Railway
+
+1. Create a new project on [Railway](https://railway.app)
+2. Add a **PostgreSQL** plugin and a **RabbitMQ** plugin
+3. Connect this repository — Railway will detect the `Dockerfile` automatically
+4. Set the following environment variables (Railway injects `DATABASE_URL` and `RABBITMQ_URL` from the plugins, but this service uses individual vars):
+
+| Variable | Source |
+|---|---|
+| `SPRING_DATASOURCE_URL` | From PostgreSQL plugin → `${{Postgres.DATABASE_URL}}` |
+| `SPRING_DATASOURCE_USERNAME` | From PostgreSQL plugin |
+| `SPRING_DATASOURCE_PASSWORD` | From PostgreSQL plugin |
+| `SPRING_RABBITMQ_HOST` | From RabbitMQ plugin |
+| `SPRING_RABBITMQ_PORT` | From RabbitMQ plugin |
+| `SPRING_RABBITMQ_USERNAME` | From RabbitMQ plugin |
+| `SPRING_RABBITMQ_PASSWORD` | From RabbitMQ plugin |
+
+The `railway.toml` at the root configures the health check path (`/health`) and restart policy.
 
 ## Related Services
 
