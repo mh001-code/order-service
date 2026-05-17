@@ -1,6 +1,8 @@
 package com.orderprocessing.order.service.application.usecase;
 
+import com.orderprocessing.order.service.application.event.OrderCancelledEvent;
 import com.orderprocessing.order.service.application.port.in.CancelOrderUseCase;
+import com.orderprocessing.order.service.application.port.out.OrderEventPublisherPort;
 import com.orderprocessing.order.service.application.port.out.OrderPersistencePort;
 import com.orderprocessing.order.service.domain.exception.OrderAlreadyCancelledException;
 import com.orderprocessing.order.service.domain.exception.OrderNotFoundException;
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class CancelOrderService implements CancelOrderUseCase {
 
     private final OrderPersistencePort persistencePort;
+    private final OrderEventPublisherPort eventPublisherPort;
 
     @Override
     public Order execute(UUID orderId) {
@@ -29,6 +32,11 @@ public class CancelOrderService implements CancelOrderUseCase {
         }
 
         order.cancel();
-        return persistencePort.save(order);
+        Order cancelled = persistencePort.save(order);
+
+        eventPublisherPort.publishOrderCancelled(
+                new OrderCancelledEvent(cancelled.getId(), cancelled.getCustomerId(), "Cancelled by customer"));
+
+        return cancelled;
     }
 }

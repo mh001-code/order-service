@@ -1,7 +1,9 @@
 package com.orderprocessing.order.service.application.usecase;
 
+import com.orderprocessing.order.service.application.event.OrderCreatedEvent;
 import com.orderprocessing.order.service.application.port.in.CreateOrderUseCase;
 import com.orderprocessing.order.service.application.port.in.OrderItemInput;
+import com.orderprocessing.order.service.application.port.out.OrderEventPublisherPort;
 import com.orderprocessing.order.service.application.port.out.OrderPersistencePort;
 import com.orderprocessing.order.service.domain.exception.InvalidOrderException;
 import com.orderprocessing.order.service.domain.model.Order;
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class CreateOrderService implements CreateOrderUseCase {
 
     private final OrderPersistencePort persistencePort;
+    private final OrderEventPublisherPort eventPublisherPort;
 
     @Override
     public Order execute(UUID customerId, List<OrderItemInput> items) {
@@ -45,6 +48,14 @@ public class CreateOrderService implements CreateOrderUseCase {
         Order saved = persistencePort.save(order);
 
         saved.confirm();
-        return persistencePort.save(saved);
+        Order confirmed = persistencePort.save(saved);
+
+        List<OrderCreatedEvent.Item> eventItems = items.stream()
+                .map(i -> new OrderCreatedEvent.Item(i.productId(), i.productName(), i.quantity(), i.unitPrice()))
+                .toList();
+        eventPublisherPort.publishOrderCreated(
+                new OrderCreatedEvent(confirmed.getId(), confirmed.getCustomerId(), eventItems, confirmed.getTotalAmount()));
+
+        return confirmed;
     }
 }
