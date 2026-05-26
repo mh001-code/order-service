@@ -8,6 +8,8 @@ import com.orderprocessing.order.service.domain.exception.OrderAlreadyCancelledE
 import com.orderprocessing.order.service.domain.exception.OrderNotFoundException;
 import com.orderprocessing.order.service.domain.model.Order;
 import com.orderprocessing.order.service.domain.model.OrderStatus;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ public class CancelOrderService implements CancelOrderUseCase {
 
     private final OrderPersistencePort persistencePort;
     private final OrderEventPublisherPort eventPublisherPort;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public Order execute(UUID orderId) {
@@ -36,6 +39,11 @@ public class CancelOrderService implements CancelOrderUseCase {
 
         eventPublisherPort.publishOrderCancelled(
                 new OrderCancelledEvent(cancelled.getId(), cancelled.getCustomerId(), "Cancelled by customer"));
+
+        Counter.builder("orders.cancelled.total")
+                .description("Total de pedidos cancelados")
+                .register(meterRegistry)
+                .increment();
 
         return cancelled;
     }

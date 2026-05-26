@@ -7,9 +7,11 @@ import com.orderprocessing.order.service.application.port.out.OrderPersistencePo
 import com.orderprocessing.order.service.domain.exception.InvalidOrderException;
 import com.orderprocessing.order.service.domain.model.Order;
 import com.orderprocessing.order.service.domain.model.OrderStatus;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -31,8 +33,14 @@ class CreateOrderServiceTest {
     @Mock
     private OrderEventPublisherPort eventPublisherPort;
 
-    @InjectMocks
+    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private CreateOrderService createOrderService;
+
+    @BeforeEach
+    void setUp() {
+        createOrderService = new CreateOrderService(persistencePort, eventPublisherPort, meterRegistry);
+    }
 
     @Test
     void shouldCreateOrderSuccessfully() {

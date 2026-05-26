@@ -7,9 +7,11 @@ import com.orderprocessing.order.service.domain.exception.OrderAlreadyCancelledE
 import com.orderprocessing.order.service.domain.exception.OrderNotFoundException;
 import com.orderprocessing.order.service.domain.model.Order;
 import com.orderprocessing.order.service.domain.model.OrderStatus;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -32,8 +34,14 @@ class CancelOrderServiceTest {
     @Mock
     private OrderEventPublisherPort eventPublisherPort;
 
-    @InjectMocks
+    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private CancelOrderService cancelOrderService;
+
+    @BeforeEach
+    void setUp() {
+        cancelOrderService = new CancelOrderService(persistencePort, eventPublisherPort, meterRegistry);
+    }
 
     @Test
     void shouldCancelOrderSuccessfully() {

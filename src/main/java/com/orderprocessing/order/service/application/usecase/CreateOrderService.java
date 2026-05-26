@@ -8,6 +8,9 @@ import com.orderprocessing.order.service.application.port.out.OrderPersistencePo
 import com.orderprocessing.order.service.domain.exception.InvalidOrderException;
 import com.orderprocessing.order.service.domain.model.Order;
 import com.orderprocessing.order.service.domain.model.OrderItem;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,14 +26,21 @@ public class CreateOrderService implements CreateOrderUseCase {
 
     private final OrderPersistencePort persistencePort;
     private final OrderEventPublisherPort eventPublisherPort;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public Order execute(UUID customerId, List<OrderItemInput> items) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+
         BigDecimal totalAmount = items.stream()
                 .map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (totalAmount.compareTo(BigDecimal.ONE) < 0) {
+            Counter.builder("orders.created.total")
+                    .tag("status", "invalid")
+                    .register(meterRegistry)
+                    .increment();
             throw new InvalidOrderException(
                     "Order total must be at least R$1.00, but was: R$" + totalAmount);
         }
@@ -55,6 +65,15 @@ public class CreateOrderService implements CreateOrderUseCase {
                 .toList();
         eventPublisherPort.publishOrderCreated(
                 new OrderCreatedEvent(confirmed.getId(), confirmed.getCustomerId(), eventItems, confirmed.getTotalAmount()));
+
+        Counter.builder("orders.created.total")
+                .tag("status", "success")
+                .register(meterRegistry)
+                .increment();
+
+        sample.stop(Timer.builder("orders.create.duration")
+                .description("Tempo de criação de pedido")
+                .register(meterRegistry));
 
         return confirmed;
     }
