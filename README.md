@@ -6,6 +6,11 @@
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white">
   <img alt="RabbitMQ" src="https://img.shields.io/badge/RabbitMQ-3-FF6600?logo=rabbitmq&logoColor=white">
   <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white">
+  <img alt="Swagger" src="https://img.shields.io/badge/Swagger-UI-85EA2D?logo=swagger&logoColor=black">
+  <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-metrics-E6522C?logo=prometheus&logoColor=white">
+  <img alt="Zipkin" src="https://img.shields.io/badge/Zipkin-tracing-FE7139">
+  <img alt="Grafana" src="https://img.shields.io/badge/Grafana-dashboard-F46800?logo=grafana&logoColor=white">
+  <img alt="k6" src="https://img.shields.io/badge/k6-load_test-7D64FF">
   <img alt="CI" src="https://github.com/mh001-code/order-service/actions/workflows/ci.yml/badge.svg">
 </p>
 
@@ -21,6 +26,7 @@ Entry point of the [Order Processing System](https://github.com/mh001-code) — 
 - [Business Rules](#business-rules)
 - [Running Locally](#running-locally)
 - [Endpoints](#endpoints)
+- [Observability](#observability)
 - [Technical Decisions](#technical-decisions)
 
 ---
@@ -116,6 +122,11 @@ com.orderprocessing.order.service
 | [JUnit 5 + Mockito](https://junit.org/junit5/) | — | Unit testing |
 | [Testcontainers](https://testcontainers.com/) | — | Integration tests with real PostgreSQL + RabbitMQ |
 | [Docker](https://www.docker.com/) | — | Containerization (multi-stage build) |
+| [Spring Boot Actuator](https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html) | — | Health checks + metrics endpoints |
+| [Micrometer + Prometheus](https://micrometer.io/) | — | Business metrics (orders criados, cancelados, latência) |
+| [Micrometer Tracing + Zipkin](https://micrometer.io/docs/tracing) | — | Distributed tracing com 100% sampling |
+| [springdoc-openapi](https://springdoc.org/) | 2.8 | Swagger UI em `/swagger-ui.html` |
+| [k6](https://k6.io/) | — | Load test com thresholds: p95 < 500ms, error < 1% |
 | [Railway](https://railway.app/) | — | Production hosting |
 | [GitHub Actions](https://github.com/features/actions) | — | CI/CD pipeline |
 
@@ -156,22 +167,35 @@ git clone https://github.com/mh001-code/order-service.git
 cd order-service
 ```
 
-### 2. Start PostgreSQL and RabbitMQ
+### 2. Start the full system (recommended)
+
+This repo includes a `docker-compose.yml` that runs all 3 services + infrastructure + observability stack:
 
 ```bash
 docker-compose up -d
 ```
 
-PostgreSQL on port `5435` · RabbitMQ on port `5672` · Management UI on `15672`
+| Service | URL |
+|---|---|
+| order-service API | http://localhost:8085 |
+| inventory-service API | http://localhost:8081 |
+| notification-service API | http://localhost:8082 |
+| Swagger UI (order) | http://localhost:8085/swagger-ui.html |
+| Swagger UI (inventory) | http://localhost:8081/swagger-ui.html |
+| Swagger UI (notification) | http://localhost:8082/swagger-ui.html |
+| RabbitMQ Management | http://localhost:15672 (guest/guest) |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin/admin) |
+| Zipkin | http://localhost:9411 |
 
-### 3. Run the application
+### 3. Run only this service locally
 
 ```bash
+# Start only PostgreSQL and RabbitMQ
+docker-compose up -d postgres-orders rabbitmq
+
 ./mvnw spring-boot:run
 ```
-
-The API will be available at `http://localhost:8085`.
-RabbitMQ Management UI: http://localhost:15672 (guest / guest)
 
 ### 4. Run the tests
 
@@ -179,6 +203,17 @@ RabbitMQ Management UI: http://localhost:15672 (guest / guest)
 # All tests including integration (Docker required for Testcontainers)
 ./mvnw test
 ```
+
+### 5. Run the load test (k6)
+
+```bash
+# Prerequisites: k6 installed (https://k6.io/docs/getting-started/installation)
+# Requires all services running via docker-compose
+
+k6 run k6/load-test.js
+```
+
+The script ramps up to 25 virtual users over 2.5 minutes, creates orders across 5 products, cancels ~30% of them, and reports p50/p95 latency, throughput and error rate. Thresholds: **p95 < 500ms** and **error rate < 1%**.
 
 ---
 
@@ -218,6 +253,24 @@ POST /orders
 | `404 Not Found` | Order not found |
 | `409 Conflict` | Order already cancelled |
 | `422 Unprocessable Entity` | Total below R$1.00 or invalid quantity |
+
+---
+
+## Observability
+
+| Endpoint | Descrição |
+|---|---|
+| `GET /actuator/health` | Status da aplicação + dependências |
+| `GET /actuator/metrics` | Listagem de métricas disponíveis |
+| `GET /actuator/prometheus` | Métricas em formato Prometheus |
+| `GET /swagger-ui.html` | Documentação interativa da API |
+
+**Métricas de negócio expostas:**
+- `orders_created_total{status="success|invalid"}` — contador de pedidos criados
+- `orders_cancelled_total` — contador de pedidos cancelados
+- `orders_create_duration_seconds` — histograma de latência de criação (p50/p95 visível no Grafana)
+
+**Distributed tracing:** cada request recebe um `traceId` que propaga via RabbitMQ headers para `inventory-service` e `notification-service`. O trace completo é visualizável no Zipkin em `http://localhost:9411`.
 
 ---
 

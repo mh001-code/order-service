@@ -21,4 +21,4 @@ jobs:
           cache: maven
 
       - name: Run tests
-        run: mvn test -B
+        run: mvn verify -B --no-transfer-progress
