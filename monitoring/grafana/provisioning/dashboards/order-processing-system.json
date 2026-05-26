@@ -1,0 +1,181 @@
+{
+  "title": "Order Processing System",
+  "uid": "order-processing-system",
+  "version": 1,
+  "schemaVersion": 38,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Pedidos Criados (total)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(orders_created_total{status='success'})",
+          "legendFormat": "Criados"
+        }
+      ],
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "green", "mode": "fixed" } } }
+    },
+    {
+      "id": 2,
+      "title": "Pedidos Cancelados (total)",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(orders_cancelled_total)",
+          "legendFormat": "Cancelados"
+        }
+      ],
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "orange", "mode": "fixed" } } }
+    },
+    {
+      "id": 3,
+      "title": "Notificações Enviadas (total)",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(notifications_sent_total{status='success'})",
+          "legendFormat": "Enviadas"
+        }
+      ],
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "blue", "mode": "fixed" } } }
+    },
+    {
+      "id": 4,
+      "title": "Notificações Falhas (total)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(notifications_sent_total{status='failed'})",
+          "legendFormat": "Falhas"
+        }
+      ],
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "red", "mode": "fixed" } } }
+    },
+    {
+      "id": 5,
+      "title": "Estoque: Reservas e Liberações (total)",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(inventory_stock_reserved_total{result='success'})",
+          "legendFormat": "Reservas"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(inventory_stock_released_total{result='success'})",
+          "legendFormat": "Liberações"
+        }
+      ],
+      "options": { "colorMode": "value", "graphMode": "none" }
+    },
+    {
+      "id": 6,
+      "title": "Taxa de Criação de Pedidos (req/min)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(orders_created_total{status='success'}[1m]) * 60",
+          "legendFormat": "Pedidos/min"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(orders_cancelled_total[1m]) * 60",
+          "legendFormat": "Cancelamentos/min"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Tempo de Criação de Pedido (p95 ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(orders_create_duration_seconds_bucket[5m])) * 1000",
+          "legendFormat": "p95 (ms)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, rate(orders_create_duration_seconds_bucket[5m])) * 1000",
+          "legendFormat": "p50 (ms)"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 8,
+      "title": "HTTP Requests por Serviço (req/min)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (application) (rate(http_server_requests_seconds_count[1m])) * 60",
+          "legendFormat": "{{application}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Uso de Memória JVM (MB)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "jvm_memory_used_bytes{area='heap', application=~'.*-service'} / 1024 / 1024",
+          "legendFormat": "{{application}} heap"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "megabytes" } }
+    },
+    {
+      "id": 10,
+      "title": "Estoque: Erros de Estoque Insuficiente",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(inventory_stock_reserved_total{result='insufficient_stock'}[5m]) * 60",
+          "legendFormat": "Estoque insuficiente/min"
+        }
+      ],
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "red", "mode": "fixed" } } }
+    },
+    {
+      "id": 11,
+      "title": "Pedidos Inválidos (valor abaixo do mínimo)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(orders_created_total{status='invalid'}[5m]) * 60",
+          "legendFormat": "Pedidos inválidos/min"
+        }
+      ],
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "red", "mode": "fixed" } } }
+    }
+  ]
+}
